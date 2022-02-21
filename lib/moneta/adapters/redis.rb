@@ -147,7 +147,9 @@ module Moneta
       def with_expiry_update(*keys, default: config.expires, **options)
         expires = expires_value(options, default)
         if expires == nil
-          yield
+          @backend.multi do |transaction|
+            yield transaction
+          end
         else
           future = nil
           @backend.multi do |transaction|

@@ -21,11 +21,11 @@ module Moneta
       # This method considers false and 0 as "no-expire" and every positive
       # number as a time to live in seconds.
       def key?(key, options = {})
-        with_expiry_update(key, default: nil, **options) do
-          if @backend.respond_to?(:exists?)
-            @backend.exists?(key)
+        with_expiry_update(key, default: nil, **options) do |transaction|
+          if transaction.respond_to?(:exists?)
+            transaction.exists?(key)
           else
-            @backend.exists(key)
+            transaction.exists(key)
           end
         end
       end
@@ -40,8 +40,8 @@ module Moneta
 
       # (see Proxy#load)
       def load(key, options = {})
-        with_expiry_update(key, default: nil, **options) do
-          @backend.get(key)
+        with_expiry_update(key, default: nil, **options) do |transaction|
+          transaction.get(key)
         end
       end
 
@@ -68,8 +68,8 @@ module Moneta
 
       # (see Proxy#increment)
       def increment(key, amount = 1, options = {})
-        with_expiry_update(key, **options) do
-          @backend.incrby(key, amount)
+        with_expiry_update(key, **options) do |transaction|
+          transaction.incrby(key, amount)
         end
       end
 
@@ -99,8 +99,8 @@ module Moneta
 
       # (see Defaults#values_at)
       def values_at(*keys, **options)
-        with_expiry_update(*keys, default: nil, **options) do
-          @backend.mget(*keys)
+        with_expiry_update(*keys, default: nil, **options) do |transaction|
+          transaction.mget(*keys)
         end
       end
 
@@ -126,8 +126,8 @@ module Moneta
           end
         end
 
-        with_expiry_update(*keys, **options) do
-          @backend.mset(*pairs.to_a.flatten(1))
+        with_expiry_update(*keys, **options) do |transaction|
+          transaction.mset(*pairs.to_a.flatten(1))
         end
 
         self
@@ -151,7 +151,7 @@ module Moneta
         else
           future = nil
           @backend.multi do |transaction|
-            future = yield
+            future = yield transaction
             keys.each { |key| update_expires(transaction, key, expires) }
           end
           future.value

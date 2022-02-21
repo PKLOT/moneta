@@ -59,9 +59,9 @@ module Moneta
       # (see Proxy#delete)
       def delete(key, options = {})
         future = nil
-        @backend.pipelined do
-          future = @backend.get(key)
-          @backend.del(key)
+        @backend.pipelined do |pipelined|
+          future = pipelined.get(key)
+          pipelined.del(key)
         end
         future.value
       end
@@ -135,12 +135,12 @@ module Moneta
 
       protected
 
-      def update_expires(key, expires)
+      def update_expires(transaction, key, expires)
         case expires
         when false
-          @backend.persist(key)
+          transaction.persist(key)
         when Numeric
-          @backend.pexpire(key, (expires * 1000).to_i)
+          transaction.pexpire(key, (expires * 1000).to_i)
         end
       end
 
@@ -150,9 +150,9 @@ module Moneta
           yield
         else
           future = nil
-          @backend.multi do
+          @backend.multi do |transaction|
             future = yield
-            keys.each { |key| update_expires(key, expires) }
+            keys.each { |key| update_expires(transaction, key, expires) }
           end
           future.value
         end
